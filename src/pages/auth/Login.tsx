@@ -16,6 +16,7 @@ function Login() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+  const domainUrl = import.meta.env.VITE_DOMAIN_URL as string | undefined;
 
   const handleChange = useCallback((field: "email" | "password") => (event: ChangeEvent<HTMLInputElement>) => {
     setForm((prev) => ({ ...prev, [field]: event.target.value }));
@@ -75,10 +76,15 @@ function Login() {
     clearAppSession();
     clearRegistrationToken();
 
+    const fallbackOrigin = `${window.location.origin}/`;
+    const trimmedDomain = domainUrl?.trim();
+    const redirectBase = trimmedDomain && trimmedDomain.length > 0 ? trimmedDomain : fallbackOrigin;
+    const redirectTo = redirectBase.endsWith("/") ? redirectBase : `${redirectBase}/`;
+
     const { error: googleError } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/`,
+        redirectTo,
       },
     });
 

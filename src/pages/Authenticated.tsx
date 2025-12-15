@@ -66,8 +66,21 @@ function Authenticated() {
     if (!user && !appSession) {
       return;
     }
-    if (!window.location.href.startsWith(domainUrl)) {
-      window.location.replace(domainUrl);
+
+    try {
+      const targetUrl = new URL(domainUrl);
+      const currentUrl = new URL(window.location.href);
+
+      const sameOrigin = targetUrl.origin === currentUrl.origin;
+      const alreadyAtTarget = currentUrl.href.startsWith(targetUrl.href);
+
+      if (sameOrigin && alreadyAtTarget) {
+        return;
+      }
+
+      window.location.replace(targetUrl.href);
+    } catch (urlError) {
+      console.warn("Invalid VITE_DOMAIN_URL provided:", domainUrl, urlError);
     }
   }, [appSession, domainUrl, loading, user]);
 
