@@ -14,6 +14,7 @@ function Authenticated() {
   const [appSession, setAppSession] = useState<StoredAppSession | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const domainUrl = import.meta.env.VITE_DOMAIN_URL as string | undefined;
 
   useEffect(() => {
     let isMounted = true;
@@ -54,6 +55,21 @@ function Authenticated() {
       isMounted = false;
     };
   }, [navigate]);
+
+  useEffect(() => {
+    if (loading) {
+      return;
+    }
+    if (!domainUrl) {
+      return;
+    }
+    if (!user && !appSession) {
+      return;
+    }
+    if (!window.location.href.startsWith(domainUrl)) {
+      window.location.replace(domainUrl);
+    }
+  }, [appSession, domainUrl, loading, user]);
 
   const handleSignOut = async () => {
     setLoading(true);
