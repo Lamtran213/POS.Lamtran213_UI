@@ -4,9 +4,11 @@ import type { ChangeEvent, FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axiosInstance from "../../axios/instance";
 import { clearRegistrationToken } from "../../lib/registrationToken";
-import { clearAppSession, storeAppSession } from "../../lib/appSession";
+import { clearAppSession, getStoredAppSession, storeAppSession } from "../../lib/appSession";
 import type { LoginRequest, LoginResponseData, StandardResponse } from "../../types/auth";
 import { supabase } from "../../../supabaseClient";
+import { buildDefaultAvatar } from "../../lib/avatar";
+import { ensureCartForStoredSession } from "../../lib/cart";
 
 const initialState = { email: "", password: "" };
 
@@ -42,18 +44,33 @@ function Login() {
         return;
       }
 
+      const responseData = data.data ?? {};
+      const trimmedEmail = payload.email;
+      const accessToken = responseData.accessToken ?? responseData.access_token;
+      const refreshToken = responseData.refreshToken ?? responseData.refresh_token;
+      const avatarUrl = responseData.avatarUrl ?? responseData.avatar_url;
+      const fullName = responseData.fullName ?? responseData.full_name;
+      const resolvedEmail = responseData.email ?? trimmedEmail;
+      const resolvedAvatar = typeof avatarUrl === "string" && avatarUrl.length > 0 ? avatarUrl : buildDefaultAvatar(resolvedEmail);
+      const previousSession = getStoredAppSession();
+      const cartCreated = previousSession?.email === resolvedEmail ? previousSession.cartCreated ?? false : false;
+
       clearRegistrationToken();
       storeAppSession({
-        email: data.data.email,
-        accessToken: data.data.accessToken,
-        refreshToken: data.data.refreshToken,
-        avatarUrl: data.data.avatarUrl,
-        fullName: data.data.fullName,
+        email: resolvedEmail,
+        accessToken: typeof accessToken === "string" ? accessToken : undefined,
+        refreshToken: typeof refreshToken === "string" ? refreshToken : undefined,
+        avatarUrl: resolvedAvatar,
+        fullName: typeof fullName === "string" ? fullName : undefined,
+        cartCreated,
         expiresAt: Date.now() + 24 * 60 * 60 * 1000,
       });
 
       setInfo(data.message ?? "Login successful.");
       navigate("/", { replace: true });
+      ensureCartForStoredSession().catch((error) => {
+        console.warn("Failed to establish cart after login:", error);
+      });
     } catch (requestError) {
       if (isAxiosError(requestError)) {
         const apiMessage = requestError.response?.data?.message as string | undefined;

@@ -1,8 +1,17 @@
-import { Link, Route, Routes } from "react-router-dom";
+import type { MouseEvent as ReactMouseEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link, Route, Routes, useNavigate } from "react-router-dom";
+import { toast } from "react-hot-toast";
+import axiosInstance from "./axios/instance";
 import Authenticated from "./pages/Authenticated";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
+import CartPage from "./pages/cart/CartPage";
+import { clearAppSession } from "./lib/appSession";
 import { useIdentity } from "./lib/useIdentity";
+import { supabase } from "../supabaseClient";
+import { ensureCartForStoredSession } from "./lib/cart";
+import type { ProductListResponse, ProductItem } from "./types/product";
 
 const heroMetrics = [
   { value: "5 min", label: "Setup time" },
@@ -71,6 +80,8 @@ const pricingHighlights = [
   "Email and chat support around the clock",
 ];
 
+const PRODUCT_PAGE_SIZE = 4;
+
 function App() {
   return (
     <Routes>
@@ -78,15 +89,61 @@ function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/authenticated" element={<Authenticated />} />
+      <Route path="/cart" element={<CartPage />} />
     </Routes>
   );
 }
 
 function HomePage() {
+  const navigate = useNavigate();
   const identity = useIdentity();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const accountMenuRef = useRef<HTMLDivElement | null>(null);
   const currentYear = new Date().getFullYear();
   const displayName = identity?.fullName ?? identity?.email ?? "";
   const avatarInitial = (displayName.charAt(0) || "P").toUpperCase();
+
+  useEffect(() => {
+    if (!menuOpen) {
+      return;
+    }
+
+    const handleClick = (event: MouseEvent) => {
+      if (!accountMenuRef.current?.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [menuOpen]);
+
+  useEffect(() => {
+    if (!identity) {
+      setMenuOpen(false);
+    }
+  }, [identity]);
+
+  const handlePersonalInfo = useCallback(() => {
+    setMenuOpen(false);
+    navigate("/authenticated");
+  }, [navigate]);
+
+  const handleLogout = useCallback(async () => {
+    setMenuOpen(false);
+    await supabase.auth.signOut();
+    clearAppSession();
+    navigate("/login");
+  }, [navigate]);
+
+  const handleCartNavigation = useCallback(() => {
+    setMenuOpen(false);
+    if (!identity) {
+      navigate("/login");
+      return;
+    }
+    navigate("/cart");
+  }, [identity, navigate]);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -122,19 +179,67 @@ function HomePage() {
               <>
                 <div className="hidden text-right leading-tight md:block">
                   <p className="text-sm font-semibold text-slate-900">{displayName}</p>
-                  <p className="text-xs text-slate-500">View workspace</p>
+                  <button
+                    type="button"
+                    onClick={handlePersonalInfo}
+                    className="text-xs font-medium text-slate-500 transition hover:text-indigo-600"
+                  >
+                    View workspace
+                  </button>
                 </div>
-                <Link
-                  to="/authenticated"
-                  className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-indigo-100 bg-indigo-50 text-sm font-semibold text-indigo-600 shadow-sm transition hover:border-indigo-200"
+                <button
+                  type="button"
+                  onClick={handleCartNavigation}
+                  className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-indigo-200 hover:text-indigo-600"
                 >
-                  {identity.avatarUrl ? (
-                    <img src={identity.avatarUrl} alt="Account avatar" className="h-full w-full object-cover" />
-                  ) : (
-                    <span>{avatarInitial}</span>
-                  )}
-                  <span className="sr-only">Open account</span>
-                </Link>
+                  <svg
+                    aria-hidden="true"
+                    className="h-4 w-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                  >
+                    <path d="M7 4h-2l-1 2v2h2l3.6 7.59c.09.16.14.34.14.52 0 .66-.54 1.2-1.2 1.2h-1.4v2h14v-2h-10.24c.58 0 1.08-.38 1.23-.95l.03-.13 1.57-6.27h6.18l1.5-6h-16z" />
+                  </svg>
+                  <span>Cart</span>
+                </button>
+                <div ref={accountMenuRef} className="relative">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen((previous) => !previous);
+                    }}
+                    aria-haspopup="menu"
+                    aria-expanded={menuOpen}
+                    className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-indigo-100 bg-indigo-50 text-sm font-semibold text-indigo-600 shadow-sm transition hover:border-indigo-200"
+                  >
+                    {identity.avatarUrl ? (
+                      <img src={identity.avatarUrl} alt="Account avatar" className="h-full w-full object-cover" />
+                    ) : (
+                      <span>{avatarInitial}</span>
+                    )}
+                    <span className="sr-only">Open account menu</span>
+                  </button>
+                  {menuOpen ? (
+                    <div className="absolute right-0 z-10 mt-3 w-48 rounded-2xl border border-slate-200 bg-white py-2 shadow-lg shadow-slate-900/10">
+                      <button
+                        type="button"
+                        onClick={handlePersonalInfo}
+                        className="flex w-full items-center justify-between px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-indigo-50"
+                      >
+                        Thông tin cá nhân
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleLogout}
+                        className="flex w-full items-center justify-between px-4 py-2 text-sm font-medium text-rose-600 transition hover:bg-rose-50"
+                      >
+                        Đăng xuất
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
               </>
             ) : (
               <>
@@ -236,6 +341,8 @@ function HomePage() {
             </div>
           </div>
         </section>
+
+        <ProductShowcase />
 
         <section id="features" className="bg-white py-20">
           <div className="mx-auto max-w-6xl px-6">
@@ -375,6 +482,248 @@ function HomePage() {
         </div>
       </footer>
     </div>
+  );
+}
+
+function ProductShowcase() {
+  const [products, setProducts] = useState<ProductItem[]>([]);
+  const [pageIndex, setPageIndex] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [expandedProductId, setExpandedProductId] = useState<number | null>(null);
+  const [addingProductId, setAddingProductId] = useState<number | null>(null);
+  const identity = useIdentity();
+  const navigate = useNavigate();
+
+  const currencyFormatter = useMemo(
+    () => new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }),
+    [],
+  );
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchProducts = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const { data } = await axiosInstance.get<ProductListResponse>("/Product", {
+          params: {
+            pageIndex,
+            pageSize: PRODUCT_PAGE_SIZE,
+          },
+        });
+
+        if (!isMounted) {
+          return;
+        }
+
+        if (!data.success) {
+          setError(data.message ?? "Unable to load products.");
+          setProducts([]);
+          setTotalPages(1);
+          setExpandedProductId(null);
+          return;
+        }
+
+        const payload = data.data;
+
+        if (!payload) {
+          setProducts([]);
+          setTotalPages(1);
+          setExpandedProductId(null);
+          return;
+        }
+
+        setProducts(payload.items ?? []);
+        setTotalPages(payload.totalPages ?? 1);
+        setExpandedProductId(null);
+      } catch (requestError) {
+        if (!isMounted) {
+          return;
+        }
+        setError("Unable to load products.");
+        setProducts([]);
+        setTotalPages(1);
+        setExpandedProductId(null);
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchProducts();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [pageIndex]);
+
+  const handlePreviousPage = useCallback(() => {
+    setPageIndex((previous) => Math.max(1, previous - 1));
+  }, []);
+
+  const handleNextPage = useCallback(() => {
+    setPageIndex((previous) => (previous >= totalPages ? previous : previous + 1));
+  }, [totalPages]);
+
+  const toggleProduct = useCallback((productId: number) => {
+    setExpandedProductId((previous) => (previous === productId ? null : productId));
+  }, []);
+
+  const handleAddToCart = useCallback(
+    async (productId: number) => {
+      if (!identity) {
+        toast.error("Please sign in to add products to your cart.");
+        navigate("/login");
+        return;
+      }
+
+      setAddingProductId(productId);
+
+      try {
+        await ensureCartForStoredSession();
+        const response = await axiosInstance.post<{ isSuccess: boolean }>("/Cart/add-item", {
+          productId,
+          quantity: 1,
+        });
+
+        if (response.data?.isSuccess) {
+          toast.success("Product added to cart.");
+        } else {
+          toast.error("Unable to add this product. Please try again.");
+        }
+      } catch (requestError) {
+        toast.error("Unable to add this product. Please try again.");
+      } finally {
+        setAddingProductId(null);
+      }
+    },
+    [identity, navigate],
+  );
+
+  return (
+    <section id="products" className="bg-gradient-to-b from-white via-slate-50 to-white py-20">
+      <div className="mx-auto max-w-6xl px-6">
+        <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">Featured products</p>
+            <h2 className="mt-3 text-3xl font-bold tracking-tight text-slate-900">Explore what is selling now.</h2>
+            <p className="mt-3 text-sm text-slate-600">
+              The catalog refreshes directly from your store with four items per page.
+            </p>
+          </div>
+          <div className="flex items-center gap-3 text-sm font-medium text-slate-600">
+            <button
+              type="button"
+              onClick={handlePreviousPage}
+              disabled={loading || pageIndex === 1}
+              className="rounded-full border border-slate-200 px-4 py-2 transition hover:border-indigo-200 hover:text-indigo-600 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Trang trước
+            </button>
+            <span className="text-xs uppercase tracking-wide text-slate-400">
+              {pageIndex} / {Math.max(totalPages, 1)}
+            </span>
+            <button
+              type="button"
+              onClick={handleNextPage}
+              disabled={loading || pageIndex >= totalPages}
+              className="rounded-full border border-slate-200 px-4 py-2 transition hover:border-indigo-200 hover:text-indigo-600 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Trang tiếp
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {loading
+            ? Array.from({ length: PRODUCT_PAGE_SIZE }).map((_, index) => (
+              <div
+                key={`skeleton-${index}`}
+                className="animate-pulse rounded-3xl border border-slate-200 bg-white p-6"
+              >
+                <div className="mb-4 h-40 w-full rounded-2xl bg-slate-200" />
+                <div className="mb-2 h-4 w-3/4 rounded-full bg-slate-200" />
+                <div className="h-4 w-1/2 rounded-full bg-slate-200" />
+              </div>
+            ))
+            : null}
+
+          {!loading && error ? (
+            <div className="col-span-full rounded-3xl border border-rose-200 bg-rose-50 px-6 py-8 text-center text-sm font-semibold text-rose-600">
+              {error}
+            </div>
+          ) : null}
+
+          {!loading && !error && products.length === 0 ? (
+            <div className="col-span-full rounded-3xl border border-slate-200 bg-white px-6 py-8 text-center text-sm text-slate-600">
+              No products available yet.
+            </div>
+          ) : null}
+
+          {!loading && !error
+            ? products.map((product) => {
+              const expanded = expandedProductId === product.productId;
+              return (
+                <div
+                  key={product.productId}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => toggleProduct(product.productId)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      toggleProduct(product.productId);
+                    }
+                  }}
+                  className="group flex h-full cursor-pointer flex-col gap-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-indigo-200 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                >
+                  <div className="relative overflow-hidden rounded-2xl border border-slate-100">
+                    <img
+                      src={product.imageUrl}
+                      alt={product.productName}
+                      className="h-40 w-full object-cover transition duration-300 group-hover:scale-105"
+                    />
+                  </div>
+                  <div className="mt-2 flex-1 space-y-2">
+                    <h3 className="text-base font-semibold text-slate-900">{product.productName}</h3>
+                    <p className="text-sm font-semibold text-indigo-600">
+                      {currencyFormatter.format(product.unitPrice)}
+                    </p>
+                    {expanded ? (
+                      <p className="text-sm leading-relaxed text-slate-600">{product.description}</p>
+                    ) : null}
+                  </div>
+                  <div className="flex items-center justify-between pt-2">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                      {expanded ? "Hide details" : "Show details"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={(event: ReactMouseEvent<HTMLButtonElement>) => {
+                        event.stopPropagation();
+                        if (addingProductId) {
+                          return;
+                        }
+                        handleAddToCart(product.productId);
+                      }}
+                      disabled={addingProductId === product.productId}
+                      className="rounded-full bg-indigo-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-70"
+                    >
+                      {addingProductId === product.productId ? "Adding..." : "Add to cart"}
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+            : null}
+        </div>
+      </div>
+    </section>
   );
 }
 

@@ -1,4 +1,6 @@
 export const APP_SESSION_STORAGE_KEY = "pos_auth_session";
+export const APP_ACCESS_TOKEN_STORAGE_KEY = "pos_access_token";
+export const APP_REFRESH_TOKEN_STORAGE_KEY = "pos_refresh_token";
 
 export interface StoredAppSession {
   email: string;
@@ -6,11 +8,26 @@ export interface StoredAppSession {
   refreshToken?: string;
   avatarUrl?: string;
   fullName?: string;
+  supabaseId?: string;
+  profileCreatedAt?: string;
+  cartCreated?: boolean;
   expiresAt: number;
 }
 
 export function storeAppSession(payload: StoredAppSession): void {
   localStorage.setItem(APP_SESSION_STORAGE_KEY, JSON.stringify(payload));
+
+  if (payload.accessToken) {
+    localStorage.setItem(APP_ACCESS_TOKEN_STORAGE_KEY, payload.accessToken);
+  } else {
+    localStorage.removeItem(APP_ACCESS_TOKEN_STORAGE_KEY);
+  }
+
+  if (payload.refreshToken) {
+    localStorage.setItem(APP_REFRESH_TOKEN_STORAGE_KEY, payload.refreshToken);
+  } else {
+    localStorage.removeItem(APP_REFRESH_TOKEN_STORAGE_KEY);
+  }
 }
 
 export function getStoredAppSession(): StoredAppSession | null {
@@ -40,4 +57,6 @@ export function getStoredAppSession(): StoredAppSession | null {
 
 export function clearAppSession(): void {
   localStorage.removeItem(APP_SESSION_STORAGE_KEY);
+  localStorage.removeItem(APP_ACCESS_TOKEN_STORAGE_KEY);
+  localStorage.removeItem(APP_REFRESH_TOKEN_STORAGE_KEY);
 }

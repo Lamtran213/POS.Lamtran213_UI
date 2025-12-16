@@ -1,5 +1,7 @@
 import axios from "axios";
-import type { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from "axios";
+import type { AxiosError, AxiosHeaders, AxiosResponse, InternalAxiosRequestConfig } from "axios";
+import toast from "react-hot-toast";
+import { getStoredAppSession } from "../lib/appSession";
 
 // Centralized axios instance with sensible defaults for the app
 const axiosInstance = axios.create({
@@ -12,7 +14,17 @@ const axiosInstance = axios.create({
 
 axiosInstance.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    // Attach auth token or other request metadata here
+    const session = getStoredAppSession();
+    if (session?.accessToken) {
+      if (config.headers && typeof (config.headers as AxiosHeaders).set === "function") {
+        (config.headers as AxiosHeaders).set("Authorization", `Bearer ${session.accessToken}`);
+      } else {
+        config.headers = {
+          ...config.headers,
+          Authorization: `Bearer ${session.accessToken}`,
+        } as InternalAxiosRequestConfig["headers"];
+      }
+    }
     return config;
   },
   (error: AxiosError) => Promise.reject(error)
@@ -21,7 +33,9 @@ axiosInstance.interceptors.request.use(
 axiosInstance.interceptors.response.use(
   (response: AxiosResponse) => response,
   (error: AxiosError) => {
-    // Handle global error transformation/logging here
+    if (error.response?.status === 401) {
+      toast.error("Your session has expired. Please sign in again.");
+    }
     return Promise.reject(error);
   }
 );

@@ -10,11 +10,15 @@ export interface LoginRequest {
 }
 
 export interface LoginResponseData {
-	email: string;
+	email?: string;
 	accessToken?: string;
 	refreshToken?: string;
 	avatarUrl?: string;
 	fullName?: string;
+	access_token?: string;
+	refresh_token?: string;
+	avatar_url?: string;
+	full_name?: string;
 	[key: string]: unknown;
 }
 
