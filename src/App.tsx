@@ -7,6 +7,9 @@ import Authenticated from "./pages/Authenticated";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import CartPage from "./pages/cart/CartPage";
+import ManagerPage from "./pages/manager/ManagerPage";
+import PaymentCancelPage from "./pages/payment/PaymentCancelPage";
+import PaymentSuccessPage from "./pages/payment/PaymentSuccessPage";
 import { clearAppSession } from "./lib/appSession";
 import { useIdentity } from "./lib/useIdentity";
 import { supabase } from "../supabaseClient";
@@ -90,6 +93,9 @@ function App() {
       <Route path="/register" element={<Register />} />
       <Route path="/authenticated" element={<Authenticated />} />
       <Route path="/cart" element={<CartPage />} />
+      <Route path="/manager" element={<ManagerPage />} />
+      <Route path="/payment/cancel" element={<PaymentCancelPage />} />
+      <Route path="/payment/success" element={<PaymentSuccessPage />} />
     </Routes>
   );
 }
@@ -102,6 +108,7 @@ function HomePage() {
   const currentYear = new Date().getFullYear();
   const displayName = identity?.fullName ?? identity?.email ?? "";
   const avatarInitial = (displayName.charAt(0) || "P").toUpperCase();
+  const isManager = identity?.role === "Manager";
 
   useEffect(() => {
     if (!menuOpen) {
@@ -187,6 +194,14 @@ function HomePage() {
                     View workspace
                   </button>
                 </div>
+                {isManager ? (
+                  <Link
+                    to="/manager"
+                    className="hidden rounded-full border border-indigo-200 px-4 py-2 text-sm font-semibold text-indigo-600 transition hover:border-indigo-300 hover:text-indigo-500 md:inline-flex"
+                  >
+                    Manager area
+                  </Link>
+                ) : null}
                 <button
                   type="button"
                   onClick={handleCartNavigation}

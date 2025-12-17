@@ -1,3 +1,5 @@
+import type { AppRole } from "./roles";
+
 export const APP_SESSION_STORAGE_KEY = "pos_auth_session";
 export const APP_ACCESS_TOKEN_STORAGE_KEY = "pos_access_token";
 export const APP_REFRESH_TOKEN_STORAGE_KEY = "pos_refresh_token";
@@ -11,6 +13,7 @@ export interface StoredAppSession {
   supabaseId?: string;
   profileCreatedAt?: string;
   cartCreated?: boolean;
+  role?: AppRole;
   expiresAt: number;
 }
 

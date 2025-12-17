@@ -12,12 +12,14 @@ import axiosInstance from "../axios/instance";
 import type { LoginResponseData, StandardResponse } from "../types/auth";
 import { buildDefaultAvatar } from "./avatar";
 import { ensureCartForStoredSession } from "./cart";
+import { extractRoleFromSession, extractRoleFromToken, type AppRole } from "./roles";
 
 export interface IdentityProfile {
   email: string;
   fullName?: string;
   avatarUrl?: string;
   provider: "supabase" | "app";
+  role?: AppRole;
 }
 
 const GOOGLE_SYNC_IN_FLIGHT = new Set<string>();
@@ -68,6 +70,11 @@ async function ensureGoogleSession(user: User | null): Promise<void> {
     const avatarUrl = responseData.avatarUrl ?? responseData.avatar_url ?? (user.user_metadata?.avatar_url as string | undefined);
 
     const cartCreated = storedEmailMatches ? stored?.cartCreated ?? false : false;
+    const role =
+      extractRoleFromToken(typeof accessToken === "string" ? accessToken : undefined) ??
+      extractRoleFromToken(typeof refreshToken === "string" ? refreshToken : undefined) ??
+      stored?.role ??
+      "User";
 
     storeAppSession({
       email,
@@ -78,6 +85,7 @@ async function ensureGoogleSession(user: User | null): Promise<void> {
       supabaseId: userId,
       profileCreatedAt: user.created_at ?? undefined,
       cartCreated,
+      role,
       expiresAt: Date.now() + ONE_DAY_IN_MS,
     });
     await ensureCartForStoredSession();
@@ -88,17 +96,20 @@ async function ensureGoogleSession(user: User | null): Promise<void> {
   }
 }
 
-function mapSupabaseSession(session: Session | null): IdentityProfile | null {
+function mapSupabaseSession(session: Session | null, stored: StoredAppSession | null): IdentityProfile | null {
   if (!session?.user) {
     return null;
   }
 
   const { user } = session;
+  const storedForUser = stored && stored.email === (user.email ?? "") ? stored : null;
+  const role = extractRoleFromSession(storedForUser);
   return {
     email: user.email ?? "",
     fullName: user.user_metadata?.full_name as string | undefined,
     avatarUrl: user.user_metadata?.avatar_url as string | undefined,
     provider: "supabase",
+    role,
   };
 }
 
@@ -117,16 +128,20 @@ function mapAppSession(stored: StoredAppSession | null): IdentityProfile | null 
     fullName: stored.fullName,
     avatarUrl: stored.avatarUrl,
     provider: "app",
+    role: extractRoleFromSession(stored),
   };
 }
 
 export function useIdentity(): IdentityProfile | null {
-  const [sessionIdentity, setSessionIdentity] = useState<IdentityProfile | null>(null);
+  const [sessionIdentity, setSessionIdentity] = useState<IdentityProfile | null>(() =>
+    mapAppSession(getStoredAppSession()),
+  );
 
   useEffect(() => {
     let isMounted = true;
 
     const resolveIdentity = async () => {
+      const storedSession = getStoredAppSession();
       const { data, error } = await supabase.auth.getSession();
 
       if (!isMounted) {
@@ -134,7 +149,7 @@ export function useIdentity(): IdentityProfile | null {
       }
 
       if (!error) {
-        const supabaseIdentity = mapSupabaseSession(data.session);
+        const supabaseIdentity = mapSupabaseSession(data.session, storedSession);
         if (supabaseIdentity) {
           setSessionIdentity(supabaseIdentity);
           await ensureGoogleSession(data.session?.user ?? null);
@@ -142,7 +157,7 @@ export function useIdentity(): IdentityProfile | null {
         }
       }
 
-      const storedIdentity = mapAppSession(getStoredAppSession());
+      const storedIdentity = mapAppSession(storedSession);
       setSessionIdentity(storedIdentity);
     };
 
@@ -154,7 +169,8 @@ export function useIdentity(): IdentityProfile | null {
       }
 
       const run = async () => {
-        const supabaseIdentity = mapSupabaseSession(session);
+        const storedSession = getStoredAppSession();
+        const supabaseIdentity = mapSupabaseSession(session, storedSession);
         if (supabaseIdentity) {
           setSessionIdentity(supabaseIdentity);
           await ensureGoogleSession(session?.user ?? null);

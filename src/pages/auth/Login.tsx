@@ -9,6 +9,7 @@ import type { LoginRequest, LoginResponseData, StandardResponse } from "../../ty
 import { supabase } from "../../../supabaseClient";
 import { buildDefaultAvatar } from "../../lib/avatar";
 import { ensureCartForStoredSession } from "../../lib/cart";
+import { extractRoleFromToken, type AppRole } from "../../lib/roles";
 
 const initialState = { email: "", password: "" };
 
@@ -54,6 +55,10 @@ function Login() {
       const resolvedAvatar = typeof avatarUrl === "string" && avatarUrl.length > 0 ? avatarUrl : buildDefaultAvatar(resolvedEmail);
       const previousSession = getStoredAppSession();
       const cartCreated = previousSession?.email === resolvedEmail ? previousSession.cartCreated ?? false : false;
+      const resolvedRole: AppRole =
+        extractRoleFromToken(typeof accessToken === "string" ? accessToken : undefined) ??
+        extractRoleFromToken(typeof refreshToken === "string" ? refreshToken : undefined) ??
+        (responseData.role === "Manager" ? "Manager" : "User");
 
       clearRegistrationToken();
       storeAppSession({
@@ -63,11 +68,12 @@ function Login() {
         avatarUrl: resolvedAvatar,
         fullName: typeof fullName === "string" ? fullName : undefined,
         cartCreated,
+        role: resolvedRole,
         expiresAt: Date.now() + 24 * 60 * 60 * 1000,
       });
 
       setInfo(data.message ?? "Login successful.");
-      navigate("/", { replace: true });
+      navigate(resolvedRole === "Manager" ? "/manager" : "/", { replace: true });
       ensureCartForStoredSession().catch((error) => {
         console.warn("Failed to establish cart after login:", error);
       });
