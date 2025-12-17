@@ -10,6 +10,7 @@ import CartPage from "./pages/cart/CartPage";
 import ManagerPage from "./pages/manager/ManagerPage";
 import PaymentCancelPage from "./pages/payment/PaymentCancelPage";
 import PaymentSuccessPage from "./pages/payment/PaymentSuccessPage";
+import CheckoutPage from "./pages/checkout/CheckoutPage";
 import { clearAppSession } from "./lib/appSession";
 import { useIdentity } from "./lib/useIdentity";
 import { supabase } from "../supabaseClient";
@@ -96,6 +97,7 @@ function App() {
       <Route path="/manager" element={<ManagerPage />} />
       <Route path="/payment/cancel" element={<PaymentCancelPage />} />
       <Route path="/payment/success" element={<PaymentSuccessPage />} />
+      <Route path="/checkout" element={<CheckoutPage />} />
     </Routes>
   );
 }
