@@ -1,5 +1,6 @@
 import { Navigate } from "react-router-dom";
 import { useIdentity } from "../../lib/useIdentity";
+import ManagerOrdersPanel from "./ManagerOrdersPanel";
 
 function ManagerPage() {
   const identity = useIdentity();
@@ -14,7 +15,7 @@ function ManagerPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 px-6 py-12">
-      <div className="mx-auto max-w-4xl space-y-8">
+      <div className="mx-auto max-w-5xl space-y-8">
         <header className="rounded-3xl border border-slate-200 bg-white px-8 py-6 shadow-sm">
           <p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">Manager dashboard</p>
           <h1 className="mt-2 text-3xl font-bold text-slate-900">Welcome back, {identity.fullName ?? identity.email}</h1>
@@ -36,6 +37,7 @@ function ManagerPage() {
             </p>
           </article>
         </section>
+        <ManagerOrdersPanel />
       </div>
     </div>
   );

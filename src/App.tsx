@@ -11,6 +11,7 @@ import ManagerPage from "./pages/manager/ManagerPage";
 import PaymentCancelPage from "./pages/payment/PaymentCancelPage";
 import PaymentSuccessPage from "./pages/payment/PaymentSuccessPage";
 import CheckoutPage from "./pages/checkout/CheckoutPage";
+import UserOrdersPage from "./pages/orders/UserOrdersPage";
 import { clearAppSession } from "./lib/appSession";
 import { useIdentity } from "./lib/useIdentity";
 import { supabase } from "../supabaseClient";
@@ -98,6 +99,7 @@ function App() {
       <Route path="/payment/cancel" element={<PaymentCancelPage />} />
       <Route path="/payment/success" element={<PaymentSuccessPage />} />
       <Route path="/checkout" element={<CheckoutPage />} />
+      <Route path="/orders" element={<UserOrdersPage />} />
     </Routes>
   );
 }
@@ -152,6 +154,15 @@ function HomePage() {
       return;
     }
     navigate("/cart");
+  }, [identity, navigate]);
+
+  const handleOrdersNavigation = useCallback(() => {
+    setMenuOpen(false);
+    if (!identity) {
+      navigate("/login");
+      return;
+    }
+    navigate("/orders");
   }, [identity, navigate]);
 
   return (
@@ -246,6 +257,13 @@ function HomePage() {
                         className="flex w-full items-center justify-between px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-indigo-50"
                       >
                         Thông tin cá nhân
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleOrdersNavigation}
+                        className="flex w-full items-center justify-between px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-indigo-50"
+                      >
+                        Đơn hàng của tôi
                       </button>
                       <button
                         type="button"
