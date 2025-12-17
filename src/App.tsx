@@ -8,6 +8,8 @@ import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import CartPage from "./pages/cart/CartPage";
 import ManagerPage from "./pages/manager/ManagerPage";
+import ManagerOrdersPage from "./pages/manager/ManagerOrdersPage";
+import ManagerProductsPage from "./pages/manager/ManagerProductsPage";
 import PaymentCancelPage from "./pages/payment/PaymentCancelPage";
 import PaymentSuccessPage from "./pages/payment/PaymentSuccessPage";
 import CheckoutPage from "./pages/checkout/CheckoutPage";
@@ -96,6 +98,8 @@ function App() {
       <Route path="/authenticated" element={<Authenticated />} />
       <Route path="/cart" element={<CartPage />} />
       <Route path="/manager" element={<ManagerPage />} />
+      <Route path="/manager/orders" element={<ManagerOrdersPage />} />
+      <Route path="/manager/products" element={<ManagerProductsPage />} />
       <Route path="/payment/cancel" element={<PaymentCancelPage />} />
       <Route path="/payment/success" element={<PaymentSuccessPage />} />
       <Route path="/checkout" element={<CheckoutPage />} />

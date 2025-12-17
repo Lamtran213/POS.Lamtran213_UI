@@ -1,6 +1,5 @@
-import { Navigate } from "react-router-dom";
+﻿import { Link, Navigate } from "react-router-dom";
 import { useIdentity } from "../../lib/useIdentity";
-import ManagerOrdersPanel from "./ManagerOrdersPanel";
 
 function ManagerPage() {
   const identity = useIdentity();
@@ -20,24 +19,37 @@ function ManagerPage() {
           <p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">Manager dashboard</p>
           <h1 className="mt-2 text-3xl font-bold text-slate-900">Welcome back, {identity.fullName ?? identity.email}</h1>
           <p className="mt-3 text-sm text-slate-600">
-            You have manager access. This area will host advanced controls for inventory, staff, and reports.
+            Sử dụng các liên kết bên dưới để quản lý đơn hàng và sản phẩm.
           </p>
         </header>
         <section className="grid gap-6 md:grid-cols-2">
-          <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-900">Inventory status</h2>
+          <Link
+            to="/manager/orders"
+            className="group rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-indigo-200 hover:shadow-md"
+          >
+            <h2 className="text-lg font-semibold text-slate-900">Quản lý đơn hàng</h2>
             <p className="mt-2 text-sm text-slate-600">
-              Integrate analytics here to monitor low-stock items and reorder points.
+              Xem toàn bộ đơn hàng, lọc theo trạng thái và kiểm tra chi tiết từng mục.
             </p>
-          </article>
-          <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-900">Team performance</h2>
+            <span className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-indigo-600">
+              Đi tới đơn hàng
+              <span aria-hidden="true">-&gt;</span>
+            </span>
+          </Link>
+          <Link
+            to="/manager/products"
+            className="group rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-indigo-200 hover:shadow-md"
+          >
+            <h2 className="text-lg font-semibold text-slate-900">Quản lý sản phẩm</h2>
             <p className="mt-2 text-sm text-slate-600">
-              Surface staff metrics, shifts, and productivity summaries for quick reviews.
+              Duyệt danh sách sản phẩm với phân trang 10 mục, xem mô tả và giá bán.
             </p>
-          </article>
+            <span className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-indigo-600">
+              Đi tới sản phẩm
+              <span aria-hidden="true">-&gt;</span>
+            </span>
+          </Link>
         </section>
-        <ManagerOrdersPanel />
       </div>
     </div>
   );

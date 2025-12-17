@@ -218,7 +218,7 @@ function ManagerOrdersPanel() {
                   </div>
                   <div className="flex flex-col items-start gap-2 text-sm text-slate-500 sm:items-end">
                     <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-600">
-                      {statusLabels[order.status] ?? `Trạng thái ${order.status}`}
+                      {statusLabels[order.status as keyof typeof statusLabels] ?? `Trạng thái ${order.status}`}
                     </span>
                     <span>Thanh toán: {order.isPaid ? "Đã thanh toán" : "Chưa thanh toán"}</span>
                     {order.paidAt ? (

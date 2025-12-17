@@ -4,6 +4,7 @@ export type ProductItem = {
 	description: string;
 	unitPrice: number;
 	imageUrl: string;
+	categoryId?: number;
 };
 
 export type ProductListPayload = {
