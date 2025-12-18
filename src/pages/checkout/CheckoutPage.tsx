@@ -34,6 +34,11 @@ interface OrderCreateResponse {
 
 const DEFAULT_FREIGHT = 30000;
 
+const PaymentMethod = {
+  PayOS: 2,
+  COD: 1,
+} as const;
+
 function CheckoutPage() {
   const identity = useIdentity();
   const navigate = useNavigate();
@@ -48,7 +53,7 @@ function CheckoutPage() {
   const [loading, setLoading] = useState(true);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [freight, setFreight] = useState<number>(DEFAULT_FREIGHT);
-  const [paymentMethod, setPaymentMethod] = useState<number>(1);
+  const [paymentMethod, setPaymentMethod] = useState<number>(PaymentMethod.PayOS);
   const [provinces, setProvinces] = useState<ProvinceSummary[]>([]);
   const [districts, setDistricts] = useState<DistrictSummary[]>([]);
   const [selectedProvinceCode, setSelectedProvinceCode] = useState<number | "">("");
@@ -265,8 +270,21 @@ function CheckoutPage() {
 
       if (succeeded) {
         toast.success("Order created successfully.");
-        if (paymentMethod === 2) {
-          navigate("/payment/cod-success", { replace: true });
+        const orderId = (responseBody?.orderId ?? (data as { orderId?: number })?.orderId) ?? null;
+        const redirectPayload = (data as { redirectUrl?: unknown })?.redirectUrl;
+        const redirectUrl =
+          (typeof responseBody?.redirectUrl === "string" && responseBody.redirectUrl.trim().length > 0
+            ? responseBody.redirectUrl.trim()
+            : null) ??
+          (typeof redirectPayload === "string" && redirectPayload.trim().length > 0 ? redirectPayload.trim() : "");
+
+        if (paymentMethod === PaymentMethod.COD) {
+          if (redirectUrl) {
+            navigate(redirectUrl, { replace: true });
+          } else {
+            const fallbackUrl = orderId ? `/order/success?orderId=${orderId}` : "/order/success";
+            navigate(fallbackUrl, { replace: true });
+          }
           return;
         }
 
@@ -279,7 +297,13 @@ function CheckoutPage() {
           return;
         }
 
-        navigate("/payment/success", { replace: true });
+        if (redirectUrl) {
+          navigate(redirectUrl, { replace: true });
+          return;
+        }
+
+        const fallbackUrl = orderId ? `/order/success?orderId=${orderId}` : "/payment/success";
+        navigate(fallbackUrl, { replace: true });
         return;
       }
 
@@ -461,23 +485,23 @@ function CheckoutPage() {
         <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-900">Payment method</h2>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <label className={`flex cursor-pointer items-center justify-between rounded-2xl border px-4 py-3 text-sm font-semibold transition ${paymentMethod === 1 ? "border-indigo-400 bg-indigo-50 text-indigo-700" : "border-slate-200 bg-slate-50 text-slate-600"}`}>
+            <label className={`flex cursor-pointer items-center justify-between rounded-2xl border px-4 py-3 text-sm font-semibold transition ${paymentMethod === PaymentMethod.PayOS ? "border-indigo-400 bg-indigo-50 text-indigo-700" : "border-slate-200 bg-slate-50 text-slate-600"}`}>
               <span>Online payment</span>
               <input
                 type="radio"
                 name="paymentMethod"
-                checked={paymentMethod === 1}
-                onChange={() => setPaymentMethod(1)}
+                checked={paymentMethod === PaymentMethod.PayOS}
+                onChange={() => setPaymentMethod(PaymentMethod.PayOS)}
                 className="h-4 w-4 text-indigo-600 focus:ring-indigo-500"
               />
             </label>
-            <label className={`flex cursor-pointer items-center justify-between rounded-2xl border px-4 py-3 text-sm font-semibold transition ${paymentMethod === 2 ? "border-indigo-400 bg-indigo-50 text-indigo-700" : "border-slate-200 bg-slate-50 text-slate-600"}`}>
+            <label className={`flex cursor-pointer items-center justify-between rounded-2xl border px-4 py-3 text-sm font-semibold transition ${paymentMethod === PaymentMethod.COD ? "border-indigo-400 bg-indigo-50 text-indigo-700" : "border-slate-200 bg-slate-50 text-slate-600"}`}>
               <span>Cash on delivery</span>
               <input
                 type="radio"
                 name="paymentMethod"
-                checked={paymentMethod === 2}
-                onChange={() => setPaymentMethod(2)}
+                checked={paymentMethod === PaymentMethod.COD}
+                onChange={() => setPaymentMethod(PaymentMethod.COD)}
                 className="h-4 w-4 text-indigo-600 focus:ring-indigo-500"
               />
             </label>

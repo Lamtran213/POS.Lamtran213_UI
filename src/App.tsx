@@ -15,6 +15,7 @@ import PaymentSuccessPage from "./pages/payment/PaymentSuccessPage";
 import CashOnDeliverySuccessPage from "./pages/payment/CashOnDeliverySuccessPage";
 import CheckoutPage from "./pages/checkout/CheckoutPage";
 import UserOrdersPage from "./pages/orders/UserOrdersPage";
+import OrderSuccessPage from "./pages/orders/OrderSuccessPage";
 import { clearAppSession } from "./lib/appSession";
 import { useIdentity } from "./lib/useIdentity";
 import { supabase } from "../supabaseClient";
@@ -106,6 +107,7 @@ function App() {
       <Route path="/payment/cod-success" element={<CashOnDeliverySuccessPage />} />
       <Route path="/checkout" element={<CheckoutPage />} />
       <Route path="/orders" element={<UserOrdersPage />} />
+      <Route path="/order/success" element={<OrderSuccessPage />} />
     </Routes>
   );
 }

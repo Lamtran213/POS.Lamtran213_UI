@@ -33,7 +33,7 @@ function ManagerOrdersPage() {
   const [pageIndex, setPageIndex] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const isMountedRef = useRef(true);
-  const loadOrdersRef = useRef<(options?: { silent?: boolean }) => Promise<boolean>>();
+  const loadOrdersRef = useRef<((options?: { silent?: boolean }) => Promise<boolean>) | null>(null);
 
   if (!identity) {
     return <Navigate to="/login" replace />;
