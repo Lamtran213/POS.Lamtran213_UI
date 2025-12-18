@@ -136,9 +136,8 @@ function ManagerOrdersPage() {
       return;
     }
 
-    const normalizedBaseUrl = apiBaseUrl.replace(/\/+$/, "");
     const connection = new HubConnectionBuilder()
-      .withUrl(`${normalizedBaseUrl}/posHub`, {
+      .withUrl(`https://pos-tranviettralam-fresher.onrender.com/posHub`, {
         accessTokenFactory: () => getStoredAppSession()?.accessToken ?? "",
       })
       .withAutomaticReconnect()
