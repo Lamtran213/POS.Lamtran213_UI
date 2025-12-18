@@ -1,7 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
+import { HubConnectionBuilder, LogLevel } from "@microsoft/signalr";
+import { toast } from "react-hot-toast";
 import { Navigate } from "react-router-dom";
 import axiosInstance from "../../axios/instance";
+import { getStoredAppSession } from "../../lib/appSession";
 import { useIdentity } from "../../lib/useIdentity";
 import type { OrderDetailItem, OrderSummary } from "../../types/order";
 
@@ -29,6 +32,8 @@ function ManagerOrdersPage() {
   const [statusFilter, setStatusFilter] = useState<number>(5);
   const [pageIndex, setPageIndex] = useState(0);
   const [hasMore, setHasMore] = useState(false);
+  const isMountedRef = useRef(true);
+  const loadOrdersRef = useRef<(options?: { silent?: boolean }) => Promise<boolean>>();
 
   if (!identity) {
     return <Navigate to="/login" replace />;
@@ -56,11 +61,22 @@ function ManagerOrdersPage() {
   );
 
   useEffect(() => {
-    let isMounted = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
-    const fetchOrders = async () => {
-      setLoading(true);
-      setError(null);
+  const loadOrders = useCallback(
+    async (options?: { silent?: boolean }) => {
+      const { silent = false } = options ?? {};
+      let succeeded = false;
+
+      if (isMountedRef.current) {
+        setError(null);
+        if (!silent) {
+          setLoading(true);
+        }
+      }
 
       try {
         const response = await axiosInstance.get<OrderSummary[]>("/Order/all", {
@@ -70,10 +86,6 @@ function ManagerOrdersPage() {
             pageSize: PAGE_SIZE,
           },
         });
-
-        if (!isMounted) {
-          return;
-        }
 
         const data = Array.isArray(response.data) ? response.data : [];
         const normalized: ManagerOrder[] = data.map((order) => ({
@@ -88,29 +100,78 @@ function ManagerOrdersPage() {
           orderDetailItems: Array.isArray(order.orderDetailItems) ? order.orderDetailItems : [],
         }));
 
-        setOrders(normalized);
-        setHasMore(normalized.length === PAGE_SIZE);
-      } catch (requestError) {
-        if (!isMounted) {
-          return;
+        if (isMountedRef.current) {
+          setOrders(normalized);
+          setHasMore(normalized.length === PAGE_SIZE);
+          succeeded = true;
         }
-
-        setError("Không thể tải danh sách đơn hàng. Vui lòng thử lại sau.");
-        setOrders([]);
-        setHasMore(false);
+      } catch (requestError) {
+        console.warn("Failed to load orders:", requestError);
+        if (isMountedRef.current) {
+          setError("Không thể tải danh sách đơn hàng. Vui lòng thử lại sau.");
+          setOrders([]);
+          setHasMore(false);
+        }
       } finally {
-        if (isMounted) {
+        if (isMountedRef.current && !silent) {
           setLoading(false);
         }
       }
-    };
 
-    fetchOrders();
+      return succeeded;
+    },
+    [pageIndex, statusFilter],
+  );
+
+  loadOrdersRef.current = loadOrders;
+
+  useEffect(() => {
+    void loadOrders();
+  }, [loadOrders]);
+
+  useEffect(() => {
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+    if (!apiBaseUrl) {
+      console.warn("Missing VITE_API_BASE_URL, skipping realtime connection.");
+      return;
+    }
+
+    const normalizedBaseUrl = apiBaseUrl.replace(/\/+$/, "");
+    const connection = new HubConnectionBuilder()
+      .withUrl(`${normalizedBaseUrl}/posHub`, {
+        accessTokenFactory: () => getStoredAppSession()?.accessToken ?? "",
+      })
+      .withAutomaticReconnect()
+      .configureLogging(LogLevel.Warning)
+      .build();
+
+    connection.on("PaymentsUpdated", () => {
+      const loader = loadOrdersRef.current;
+      if (!loader) {
+        return;
+      }
+
+      loader({ silent: true }).then((updated) => {
+        if (updated) {
+          toast.success("Có đơn hàng mới hoặc thanh toán thay đổi, danh sách đã được cập nhật.");
+        }
+      }).catch((error) => {
+        console.warn("Failed to refresh orders after realtime event:", error);
+        toast.error("Không thể cập nhật đơn hàng realtime.");
+      });
+    });
+
+    connection.start().catch((error) => {
+      console.warn("Không thể kết nối realtime:", error);
+    });
 
     return () => {
-      isMounted = false;
+      connection.off("PaymentsUpdated");
+      connection.stop().catch((error) => {
+        console.warn("Lỗi khi ngắt kết nối realtime:", error);
+      });
     };
-  }, [statusFilter, pageIndex]);
+  }, []);
 
   const handleStatusChange = (event: ChangeEvent<HTMLSelectElement>) => {
     const nextStatus = Number.parseInt(event.target.value, 10);
