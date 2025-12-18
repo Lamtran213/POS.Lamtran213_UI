@@ -55,6 +55,9 @@ function CheckoutPage() {
   const [selectedDistrictCode, setSelectedDistrictCode] = useState<number | "">("");
   const [specificAddress, setSpecificAddress] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [locationServiceAvailable, setLocationServiceAvailable] = useState(true);
+  const [manualProvince, setManualProvince] = useState("");
+  const [manualDistrict, setManualDistrict] = useState("");
 
   useEffect(() => {
     if (!selectedCartItemIds.length) {
@@ -117,17 +120,29 @@ function CheckoutPage() {
 
     const loadProvinces = async () => {
       try {
-        const response = await fetch("https://provinces.open-api.vn/api/?depth=2");
+        const response = await fetch("https://provinces.open-api.vn/api/v1/?depth=2");
         if (!response.ok) {
           throw new Error("Failed to fetch provinces");
         }
         const data = (await response.json()) as ProvinceSummary[];
         if (isMounted) {
           setProvinces(data);
+          setLocationServiceAvailable(true);
+          setManualProvince("");
+          setManualDistrict("");
         }
       } catch (error) {
         console.warn("Failed to fetch provinces:", error);
-        toast.error("Unable to load provinces.");
+        toast.error("Unable to load provinces, please enter your address manually.");
+        if (isMounted) {
+          setLocationServiceAvailable(false);
+          setProvinces([]);
+          setDistricts([]);
+          setSelectedProvinceCode("");
+          setSelectedDistrictCode("");
+          setManualProvince("");
+          setManualDistrict("");
+        }
       }
     };
 
@@ -139,6 +154,12 @@ function CheckoutPage() {
   }, []);
 
   useEffect(() => {
+    if (!locationServiceAvailable) {
+      setDistricts([]);
+      setSelectedDistrictCode("");
+      return;
+    }
+
     if (selectedProvinceCode === "") {
       setDistricts([]);
       setSelectedDistrictCode("");
@@ -154,7 +175,7 @@ function CheckoutPage() {
       const match = province?.districts?.some((district) => district.code === Number(previous));
       return match ? previous : "";
     });
-  }, [provinces, selectedProvinceCode]);
+  }, [locationServiceAvailable, provinces, selectedProvinceCode]);
 
   const subtotal = useMemo(
     () =>
@@ -194,22 +215,29 @@ function CheckoutPage() {
       return;
     }
 
-    if (!selectedProvince || !selectedDistrict) {
-      toast.error("Please choose province and district.");
-      return;
-    }
-
     if (selectedCartItemIds.length === 0) {
       toast.error("No items selected for checkout.");
       navigate("/cart", { replace: true });
       return;
     }
 
-    const addressParts = [
-      specificAddress.trim(),
-      selectedDistrict.name,
-      selectedProvince.name,
-    ].filter(Boolean);
+    const addressParts = [specificAddress.trim()];
+
+    if (locationServiceAvailable) {
+      if (selectedDistrict?.name) {
+        addressParts.push(selectedDistrict.name);
+      }
+      if (selectedProvince?.name) {
+        addressParts.push(selectedProvince.name);
+      }
+    } else {
+      if (manualDistrict.trim().length > 0) {
+        addressParts.push(manualDistrict.trim());
+      }
+      if (manualProvince.trim().length > 0) {
+        addressParts.push(manualProvince.trim());
+      }
+    }
 
     const payload = {
       freight,
@@ -265,6 +293,9 @@ function CheckoutPage() {
     navigate,
     paymentMethod,
     selectedCartItemIds,
+    locationServiceAvailable,
+    manualDistrict,
+    manualProvince,
     selectedDistrict,
     selectedProvince,
     specificAddress,
@@ -304,39 +335,71 @@ function CheckoutPage() {
       <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-12">
         <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-900">Shipping information</h2>
+          {!locationServiceAvailable ? (
+            <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+              Không thể tải danh sách tỉnh/thành tự động. Vui lòng nhập đầy đủ địa chỉ thủ công bên dưới.
+            </div>
+          ) : null}
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
-            <label className="text-sm font-medium text-slate-700">
-              Province
-              <select
-                value={selectedProvinceCode}
-                onChange={(event) => setSelectedProvinceCode(event.target.value === "" ? "" : Number(event.target.value))}
-                className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-              >
-                <option value="">Choose province</option>
-                {provinces.map((province) => (
-                  <option key={province.code} value={province.code}>
-                    {province.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="text-sm font-medium text-slate-700">
-              District
-              <select
-                value={selectedDistrictCode}
-                onChange={(event) => setSelectedDistrictCode(event.target.value === "" ? "" : Number(event.target.value))}
-                disabled={selectedProvinceCode === ""}
-                className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 disabled:cursor-not-allowed disabled:bg-slate-100"
-              >
-                <option value="">Choose district</option>
-                {districts.map((district) => (
-                  <option key={district.code} value={district.code}>
-                    {district.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="text-sm font-medium text-slate-700">
+            {locationServiceAvailable ? (
+              <>
+                <label className="text-sm font-medium text-slate-700">
+                  Province
+                  <select
+                    value={selectedProvinceCode}
+                    onChange={(event) => setSelectedProvinceCode(event.target.value === "" ? "" : Number(event.target.value))}
+                    className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                  >
+                    <option value="">Choose province</option>
+                    {provinces.map((province) => (
+                      <option key={province.code} value={province.code}>
+                        {province.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="text-sm font-medium text-slate-700">
+                  District
+                  <select
+                    value={selectedDistrictCode}
+                    onChange={(event) => setSelectedDistrictCode(event.target.value === "" ? "" : Number(event.target.value))}
+                    disabled={selectedProvinceCode === ""}
+                    className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 disabled:cursor-not-allowed disabled:bg-slate-100"
+                  >
+                    <option value="">Choose district</option>
+                    {districts.map((district) => (
+                      <option key={district.code} value={district.code}>
+                        {district.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </>
+            ) : (
+              <>
+                <label className="text-sm font-medium text-slate-700">
+                  Province / City
+                  <input
+                    type="text"
+                    value={manualProvince}
+                    onChange={(event) => setManualProvince(event.target.value)}
+                    placeholder="Nhập tỉnh / thành phố"
+                    className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                  />
+                </label>
+                <label className="text-sm font-medium text-slate-700">
+                  District
+                  <input
+                    type="text"
+                    value={manualDistrict}
+                    onChange={(event) => setManualDistrict(event.target.value)}
+                    placeholder="Nhập quận / huyện"
+                    className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                  />
+                </label>
+              </>
+            )}
+            <label className="text-sm font-medium text-slate-700 sm:col-span-2">
               Specific address
               <input
                 type="text"
