@@ -12,6 +12,7 @@ import ManagerOrdersPage from "./pages/manager/ManagerOrdersPage";
 import ManagerProductsPage from "./pages/manager/ManagerProductsPage";
 import PaymentCancelPage from "./pages/payment/PaymentCancelPage";
 import PaymentSuccessPage from "./pages/payment/PaymentSuccessPage";
+import CashOnDeliverySuccessPage from "./pages/payment/CashOnDeliverySuccessPage";
 import CheckoutPage from "./pages/checkout/CheckoutPage";
 import UserOrdersPage from "./pages/orders/UserOrdersPage";
 import { clearAppSession } from "./lib/appSession";
@@ -102,6 +103,7 @@ function App() {
       <Route path="/manager/products" element={<ManagerProductsPage />} />
       <Route path="/payment/cancel" element={<PaymentCancelPage />} />
       <Route path="/payment/success" element={<PaymentSuccessPage />} />
+      <Route path="/payment/cod-success" element={<CashOnDeliverySuccessPage />} />
       <Route path="/checkout" element={<CheckoutPage />} />
       <Route path="/orders" element={<UserOrdersPage />} />
     </Routes>

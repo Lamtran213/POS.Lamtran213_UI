@@ -265,6 +265,11 @@ function CheckoutPage() {
 
       if (succeeded) {
         toast.success("Order created successfully.");
+        if (paymentMethod === 2) {
+          navigate("/payment/cod-success", { replace: true });
+          return;
+        }
+
         const paymentUrl =
           typeof responseBody?.paymentUrl === "string" && responseBody.paymentUrl.trim().length > 0
             ? responseBody.paymentUrl.trim()
